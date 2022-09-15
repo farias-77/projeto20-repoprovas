@@ -31,7 +31,7 @@ export async function insertUser(user: TUser){
 export async function validatePassword(userBody: TUser){
     const userDatabase: Users | null = await findByEmail(userBody.email);
     
-    if(!userDatabase || !bcrypt.compare(userBody.password, userDatabase.password)){
+    if( !userDatabase || !( await bcrypt.compare(userBody.password, userDatabase.password) )){
         throw{type: "unauthorized", message: "Invalid credentials."};
     }
 
