@@ -11,9 +11,14 @@ export async function signUp(req: Request, res: Response){
     await authServices.validateNewEmail(user.email);
     await authServices.insertUser(user);
 
-    res.status(200).send("Usuário criado com sucesso.");
+    res.status(201).send("Usuário criado com sucesso.");
 }
 
 export async function signIn(req: Request, res: Response){
-    
+    const user: TUser = req.body;
+
+    await authServices.validatePassword(user);
+    const token = authServices.generateToken(user.email);
+
+    res.status(200).send({token});
 }
