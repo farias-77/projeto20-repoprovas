@@ -12,3 +12,11 @@ export async function insertTest(req: Request, res: Response){
 
     res.status(201).send("Test created.");
 }
+
+export async function returnAllTests(req: Request, res: Response){
+    const tests: any = await testServices.getAllTests();
+    const testsGroupedByDiscipline: any = await testServices.divideByDiscipline(tests);
+    const testsGroupedByTerm: any = 0 /// PAREI AQUI
+
+    res.status(200).send(testsGroupedByDiscipline);
+}

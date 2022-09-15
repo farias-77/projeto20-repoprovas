@@ -8,3 +8,7 @@ export async function findIfTeacherDisciplineIdIsValid(teacherDisciplineId: numb
         }
     });
 }
+
+export async function getAllDisciplines(){
+    return await prisma.disciplines.findMany();
+}
