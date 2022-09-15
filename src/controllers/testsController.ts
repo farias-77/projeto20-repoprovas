@@ -6,6 +6,7 @@ import { TTest } from "../types/testTypes";
 export async function insertTest(req: Request, res: Response){
     const test: TTest = req.body;
 
+    await testServices.validateCategory(test.categoryId);
     await testServices.validateTeacherDisciplineId(test.teacherDisciplineId);
     await testServices.insertTest(test);
 
