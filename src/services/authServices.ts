@@ -13,7 +13,7 @@ export function validateConfirmPassword(password: string, confirmPassword: strin
 }
 
 export async function validateNewEmail(email: string){
-    const user: Users = await findByEmail(email);
+    const user: Users | null = await findByEmail(email);
 
     if(user){
         throw{type: "conflict", message: "Email already in use!"};
@@ -29,7 +29,7 @@ export async function insertUser(user: TUser){
 }
 
 export async function validatePassword(userBody: TUser){
-    const userDatabase = await findByEmail(userBody.email);
+    const userDatabase: Users | null = await findByEmail(userBody.email);
     
     if(!userDatabase || !bcrypt.compare(userBody.password, userDatabase.password)){
         throw{type: "unauthorized", message: "Invalid credentials."};
@@ -39,10 +39,10 @@ export async function validatePassword(userBody: TUser){
 }
 
 export async function generateToken(email: string){
-    const user: Users = await findByEmail(email);
+    const user: Users | null = await findByEmail(email);
     
     const secretKey: string = process.env.JWT_SECRET || "";
-    const token = jwt.sign({ id: user.id }, secretKey);
+    const token: string = (user ? jwt.sign({ id: user.id }, secretKey) : "");
 
     return token;
 }
@@ -54,6 +54,6 @@ async function encryptsPassword(password: string): Promise<string>{
     return encryptedPassword;
 }
 
-async function findByEmail(email: string): Promise<Users>{
+async function findByEmail(email: string): Promise<Users | null>{
     return await userRepositories.findByEmail(email);
 }
