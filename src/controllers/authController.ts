@@ -11,7 +11,7 @@ export async function signUp(req: Request, res: Response){
     await authServices.validateNewEmail(user.email);
     const createdUser = await authServices.insertUser(user);
 
-    res.status(201).send({user: createdUser});
+    res.status(201).send(createdUser);
 }
 
 export async function signIn(req: Request, res: Response){
