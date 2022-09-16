@@ -9,9 +9,9 @@ export async function signUp(req: Request, res: Response){
     
     authServices.validateConfirmPassword(user.password, confirmPassword);
     await authServices.validateNewEmail(user.email);
-    await authServices.insertUser(user);
+    const createdUser = await authServices.insertUser(user);
 
-    res.status(201).send("User created.");
+    res.status(201).send({user: createdUser});
 }
 
 export async function signIn(req: Request, res: Response){
