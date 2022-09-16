@@ -18,6 +18,7 @@ export async function returnAllTests(req: Request, res: Response){
     const testsGroupedByDiscipline: [ITestAfterTreatment[]] = await testServices.divideByDiscipline(tests);
     const testsGroupedByTerm: any = await testServices.divideByTerm(testsGroupedByDiscipline);
     const testsGroupedByCategory: any = await testServices.divideByCategory(testsGroupedByTerm);
+    const sanitizedData: any = await testServices.sanitizeData(testsGroupedByCategory);
 
-    res.status(200).send(testsGroupedByCategory);
+    res.status(200).send(sanitizedData);
 }

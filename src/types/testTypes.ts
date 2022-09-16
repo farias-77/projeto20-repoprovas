@@ -46,3 +46,13 @@ export interface ITestAfterTreatment {
         termId: number
         }
   }
+
+export interface ISanitizedTest {
+    id: number,
+    name: string,
+    pdfUrl: string,
+    category: string,
+    teacher: string,
+    discipline: string,
+    termId: number
+}

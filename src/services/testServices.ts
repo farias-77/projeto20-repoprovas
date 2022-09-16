@@ -4,7 +4,8 @@ import * as testRepositories from "../repositories/testRepository";
 import * as termRepositories from "../repositories/termRepository";
 
 import { Categories, TeachersDisciplines, Tests, Disciplines } from "@prisma/client";
-import { ITestAfterTreatment, ITestWithAllInfo, TTest } from "../types/testTypes";
+import { ITestAfterTreatment, ITestWithAllInfo, TTest, ISanitizedTest } from "../types/testTypes";
+import { TDiscipline } from "../types/teacherDisciplineTypes";
 
 export async function insertTest(test: TTest){
     return await testRepositories.insertTest(test);
@@ -92,7 +93,6 @@ export async function divideByCategory(testsGroupedByTerm: {}){
         const termIdAsKey = termId as ObjectKey;
         const termDisciplinesArray: [ITestAfterTreatment[]] = testsGroupedByTerm[termIdAsKey];        
         
-        let newTermFormat = [];
         const newTermDisciplinesFormat = [];         
 
         for(let j = 0; j < termDisciplinesArray.length; j++){
@@ -100,12 +100,33 @@ export async function divideByCategory(testsGroupedByTerm: {}){
             newTermDisciplinesFormat.push(disciplineAsObject);
         }
 
-        newTermFormat.push(newTermDisciplinesFormat);
-
-        testsGroupedByCategory = {...testsGroupedByCategory, [termIdAsKey]: newTermFormat};
+        testsGroupedByCategory = {...testsGroupedByCategory, [termIdAsKey]: newTermDisciplinesFormat};
     }
 
     return testsGroupedByCategory;
+}
+
+export async function sanitizeData(testsGroupedByCategory: {}){
+    const terms = await termRepositories.getAllTerms();
+    let sanitizedTests = {};
+
+    for(let termId = 1; termId <= terms.length; termId++){ //navega por períodos
+        type ObjectKey = keyof typeof testsGroupedByCategory;
+        const termIdAsKey = termId as ObjectKey;
+        const termDisciplinesArray: TDiscipline[] = testsGroupedByCategory[termIdAsKey];        
+        
+        const sanitizedTermDisciplines = [];         
+
+        for(let j = 0; j < termDisciplinesArray.length; j++){//navega por disciplinas
+            const discipline: TDiscipline = termDisciplinesArray[j];
+            const sanitizedDiscipline: TDiscipline = returnSanitizedDiscipline(discipline);
+            sanitizedTermDisciplines.push(sanitizedDiscipline);
+        }
+
+        sanitizedTests = {...sanitizedTests, [termIdAsKey]: sanitizedTermDisciplines};
+    }
+
+    return sanitizedTests;
 }
 
 function returnNewTestStructure(test: ITestWithAllInfo): ITestAfterTreatment{
@@ -148,4 +169,31 @@ function returnDisciplineDividedByCategory(tests: ITestAfterTreatment[], categor
     }
     
     return testsByCategory;
+}
+
+function returnSanitizedTest(test: ITestAfterTreatment){
+    const sanitizedTest = {
+        id: test.id,
+        name: test.name,
+        pdfUrl: test.pdfUrl,
+        category: test.category.name,
+        teacher: test.teachers.name,
+        discipline: test.discipline.name,
+        termId: test.discipline.termId
+    }
+
+    return sanitizedTest;
+}  
+
+function returnSanitizedDiscipline(discipline: TDiscipline): TDiscipline{
+    type ObjectKey = keyof typeof discipline;
+    const projeto = "Projeto" as ObjectKey;
+    const pratica = "Prática" as ObjectKey;
+    const recuperacao = "Recuperação" as ObjectKey;
+    
+    const sanitizedProjects: any = discipline[projeto].map(returnSanitizedTest);
+    const sanitizedPratics: any = discipline[pratica].map(returnSanitizedTest);
+    const sanitizedRec: any = discipline[recuperacao].map(returnSanitizedTest);
+
+    return {"Projeto": sanitizedProjects, "Prática": sanitizedPratics, "Recuperação": sanitizedRec};
 }
