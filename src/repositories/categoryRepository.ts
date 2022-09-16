@@ -8,3 +8,7 @@ export async function findById(categoryId: number): Promise<Categories | null>{
         }
     });
 }
+
+export async function getAllCategories(){
+    return await prisma.categories.findMany();
+}

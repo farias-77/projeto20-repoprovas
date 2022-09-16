@@ -1,8 +1,9 @@
 import * as teacherDisciplineRepositories from "../repositories/teacherDisciplineRepository";
 import * as categoryRepositories from "../repositories/categoryRepository";
-import { Categories, TeachersDisciplines, Tests } from "@prisma/client";
-import { TTeacherDiscipline } from "../types/teacherDisciplineTypes";
 import * as testRepositories from "../repositories/testRepository";
+import * as termRepositories from "../repositories/termRepository";
+
+import { Categories, TeachersDisciplines, Tests, Disciplines } from "@prisma/client";
 import { ITestAfterTreatment, ITestWithAllInfo, TTest } from "../types/testTypes";
 
 export async function insertTest(test: TTest){
@@ -33,16 +34,16 @@ export async function getAllTests(): Promise<Tests[]>{
     return await testRepositories.getAllTests();
 }
 
-export async function divideByDiscipline(tests: ITestWithAllInfo[]){
+export async function divideByDiscipline(tests: ITestWithAllInfo[]): Promise<[ITestAfterTreatment[]]>{
     const disciplines = await teacherDisciplineRepositories.getAllDisciplines();
     const numberOfDisciplines = disciplines.length;
-    const testsPositionByDiscipline = [[]];
+    const testsPositionByDiscipline: [ITestAfterTreatment[]] = [[]];
     
     for(let i = 1; i <= numberOfDisciplines; i++){
         const testsByDiscipline: any = [];
         
         tests.map((test: ITestWithAllInfo) => {
-            const treatedTest = returnNewTestStructure(test);
+            const treatedTest: ITestAfterTreatment = returnNewTestStructure(test);
 
             if(treatedTest.discipline.id === i){
                 testsByDiscipline.push(treatedTest);
@@ -53,6 +54,58 @@ export async function divideByDiscipline(tests: ITestWithAllInfo[]){
     }
     
     return testsPositionByDiscipline;
+}
+
+export async function divideByTerm(testsGroupedByDiscipline: [ITestAfterTreatment[]]){   
+    type periodosKey = keyof typeof periodos;
+    
+    const disciplines: Disciplines[]  = await teacherDisciplineRepositories.getAllDisciplines();
+    const terms = await termRepositories.getAllTerms(); 
+    let periodos = {};
+    
+    //cria um array para cada período
+    for(let i = 1; i <= terms.length; i++){
+        periodos = {...periodos, [i]: []};
+    }
+                        //array com array de provas por posição
+    for(let i = 1; i < testsGroupedByDiscipline.length; i++){
+        const termIdOfDiscipline = disciplines[i-1].termId as periodosKey;
+        const testsOfDiscipline: ITestAfterTreatment[] = testsGroupedByDiscipline[i];
+
+        const periodosData: [ITestAfterTreatment[]] = periodos[termIdOfDiscipline];
+        periodosData.push(testsOfDiscipline);
+        
+        periodos = { ...periodos, [termIdOfDiscipline]: periodosData};
+    }
+
+    return periodos;
+}
+
+export async function divideByCategory(testsGroupedByTerm: {}){
+    const categories = await categoryRepositories.getAllCategories();
+    const terms = await termRepositories.getAllTerms();
+
+    let testsGroupedByCategory = {};
+
+    for(let termId = 1; termId <= terms.length; termId++){
+        type ObjectKey = keyof typeof testsGroupedByTerm;
+        const termIdAsKey = termId as ObjectKey;
+        const termDisciplinesArray: [ITestAfterTreatment[]] = testsGroupedByTerm[termIdAsKey];        
+        
+        let newTermFormat = [];
+        const newTermDisciplinesFormat = [];         
+
+        for(let j = 0; j < termDisciplinesArray.length; j++){
+            const disciplineAsObject = returnDisciplineDividedByCategory(termDisciplinesArray[j], categories);
+            newTermDisciplinesFormat.push(disciplineAsObject);
+        }
+
+        newTermFormat.push(newTermDisciplinesFormat);
+
+        testsGroupedByCategory = {...testsGroupedByCategory, [termIdAsKey]: newTermFormat};
+    }
+
+    return testsGroupedByCategory;
 }
 
 function returnNewTestStructure(test: ITestWithAllInfo): ITestAfterTreatment{
@@ -74,4 +127,25 @@ function returnNewTestStructure(test: ITestWithAllInfo): ITestAfterTreatment{
           termId: test.teacherDisciplines.discipline.termId
         }
     }
+}
+
+function returnDisciplineDividedByCategory(tests: ITestAfterTreatment[], categories: Categories[]){
+    let testsByCategory = {};
+    type ObjectKey = keyof typeof testsByCategory;
+
+    for(let i = 0; i < categories.length; i++){
+        testsByCategory = { ...testsByCategory, [categories[i].name]: []};
+    }
+
+    for(let i = 0; i < tests.length; i++){
+        const test: ITestAfterTreatment = tests[i];
+        const testCategory = test.category.name as ObjectKey;
+
+        const categoryData: ITestAfterTreatment[] = testsByCategory[testCategory];
+        categoryData.push(test);
+        
+        testsByCategory = { ...testsByCategory, [testCategory]: categoryData};
+    }
+    
+    return testsByCategory;
 }

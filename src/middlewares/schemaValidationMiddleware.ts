@@ -5,8 +5,7 @@ export const schemaValidation = (schema: any) => {
       const validation = schema.validate(req.body);
 
       if (validation.error) {
-        res.status(422).send(validation.error.details[0].message);
-        return;
+        return res.status(422).send(validation.error.details[0].message);
       }
       next();
     }
