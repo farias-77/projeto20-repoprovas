@@ -3,8 +3,8 @@ import * as categoryRepositories from "../repositories/categoryRepository";
 import * as testRepositories from "../repositories/testRepository";
 import * as termRepositories from "../repositories/termRepository";
 
-import { Categories, TeachersDisciplines, Tests, Disciplines, Terms } from "@prisma/client";
-import { ITestWithAllInfo, TTest, ISanitizedTest, IDiscipline, ITerm, ISanitizedTerm, ISanitizedDiscipline } from "../types/testTypes";
+import { Categories, TeachersDisciplines, Tests, Disciplines, Terms, Teachers } from "@prisma/client";
+import { ITestWithAllInfo, TTest, ISanitizedTest, IDiscipline, ITerm, ISanitizedTerm, ISanitizedDiscipline, ITestsByTeacher } from "../types/testTypes";
 
 
 export async function insertTest(test: TTest){
@@ -69,6 +69,29 @@ export function sanitizeGroupedTests(groupedTests: ITerm[]): ISanitizedTerm[]{
     return sanitizedTests;
 }
 
+export async function groupTestsByTeacher(tests: ITestWithAllInfo[]){
+    const sanitizedTests: ISanitizedTest[] = tests.map((test: ITestWithAllInfo) => {return returnSanitizedTest(test)});
+    const teachers: Teachers[] = await teacherDisciplineRepositories.getAllTeachers();
+    
+    let testsByTeacher: ITestsByTeacher[] = [];
+    teachers.forEach((teacher: Teachers) => {
+        const testByTeacherStructure: ITestsByTeacher = {
+             teacher: teacher.name,
+             tests: {
+                 Projeto: [],
+                 Prática: [],
+                 Recuperação: []
+             }
+        }
+
+        testsByTeacher.push(testByTeacherStructure);
+    });
+    
+    testsByTeacher = distributeTestsByTeacher(sanitizedTests, testsByTeacher);
+    
+    return testsByTeacher;
+}
+
 function populateWithDisciplines(term: Terms, disciplines: Disciplines[], tests: Tests[]): IDiscipline[]{
     const disciplineArray: IDiscipline[] = [];
 
@@ -104,6 +127,23 @@ function distributeTests(tests: ITestWithAllInfo[], groupedTests: ITerm[]): ITer
     return groupedTests;
 }
 
+function distributeTestsByTeacher(tests: ISanitizedTest[], testsByTeacher: ITestsByTeacher[]): ITestsByTeacher[]{
+    for(let i = 0; i < tests.length; i++){
+        const test: ISanitizedTest = tests[i];
+        const teacher = test.teacher; 
+        
+        for(let j = 0; j < testsByTeacher.length; j++){
+            let teacherAtIndex: ITestsByTeacher = testsByTeacher[j];
+            if(teacher === teacherAtIndex.teacher){
+                teacherAtIndex = placeTestByTeacher(test, teacherAtIndex);
+                testsByTeacher[j] = teacherAtIndex;
+            }
+        }
+    }    
+    
+    return testsByTeacher;
+}
+
 function placeTest(test: ITestWithAllInfo, groupedTests: ITerm[]): ITerm[]{    
     const termId: number = test.teacherDisciplines.discipline.termId;
     const term: ITerm = groupedTests[termId - 1];
@@ -126,11 +166,22 @@ function placeTest(test: ITestWithAllInfo, groupedTests: ITerm[]): ITerm[]{
     return groupedTests;
 }
 
+function placeTestByTeacher(test: ISanitizedTest, testsByTeacher: ITestsByTeacher): ITestsByTeacher{
+    const teacherTests = testsByTeacher.tests;
+    type ObjectKey = keyof typeof teacherTests;
+    
+    const testCategory = test.category as ObjectKey;
+    teacherTests[testCategory].push(test);
+
+    return testsByTeacher;
+}
+
 function returnSanitizedTest(test: ITestWithAllInfo): ISanitizedTest{
     const sanitizedTest: ISanitizedTest = {
         id: test.id,
         name: test.name,
         pdfUrl: test.pdfUrl,
+        category: test.categories.name,
         teacher: test.teacherDisciplines.teachers.name
     }
 

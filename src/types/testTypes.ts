@@ -51,6 +51,7 @@ export interface ISanitizedTest {
     id: number,
     name: string,
     pdfUrl: string,
+    category: string,
     teacher: string
 }
 
@@ -75,6 +76,15 @@ export interface IDiscipline {
 
 export interface ISanitizedDiscipline {
   discipline: string,
+  tests:{
+    Projeto: ISanitizedTest[],
+    Prática: ISanitizedTest[],
+    Recuperação: ISanitizedTest[]
+  }
+}
+
+export interface ITestsByTeacher {
+  teacher: string,
   tests:{
     Projeto: ISanitizedTest[],
     Prática: ISanitizedTest[],
