@@ -1,24 +1,22 @@
 import { Request, Response } from "express";
 
 import * as testServices from "../services/testServices";
-import { ITestAfterTreatment, TTest } from "../types/testTypes";
+import { ITestWithAllInfo, TTest, ITerm, ISanitizedTerm} from "../types/testTypes";
 
 export async function insertTest(req: Request, res: Response){
     const test: TTest = req.body;
 
     await testServices.validateCategory(test.categoryId);
     await testServices.validateTeacherDisciplineId(test.teacherDisciplineId);
-    await testServices.insertTest(test);
+    const createdTest = await testServices.insertTest(test);
 
-    res.status(201).send("Test created.");
+    res.status(201).send({test: createdTest});
 }
 
 export async function returnAllTests(req: Request, res: Response){
-    const tests: any = await testServices.getAllTests();
-    const testsGroupedByDiscipline: [ITestAfterTreatment[]] = await testServices.divideByDiscipline(tests);
-    const testsGroupedByTerm: any = await testServices.divideByTerm(testsGroupedByDiscipline);
-    const testsGroupedByCategory: any = await testServices.divideByCategory(testsGroupedByTerm);
-    const sanitizedData: any = await testServices.sanitizeData(testsGroupedByCategory);
+    const tests: ITestWithAllInfo[] = await testServices.getAllTests();
+    const groupedTests: ITerm[] = await testServices.groupTests(tests);
+    const sanitizedGroupedTests: ISanitizedTerm[] = testServices.sanitizeGroupedTests(groupedTests);
 
-    res.status(200).send(sanitizedData);
+    res.status(200).send(sanitizedGroupedTests);
 }

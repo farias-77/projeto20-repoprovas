@@ -3,9 +3,9 @@ import * as categoryRepositories from "../repositories/categoryRepository";
 import * as testRepositories from "../repositories/testRepository";
 import * as termRepositories from "../repositories/termRepository";
 
-import { Categories, TeachersDisciplines, Tests, Disciplines } from "@prisma/client";
-import { ITestAfterTreatment, ITestWithAllInfo, TTest, ISanitizedTest } from "../types/testTypes";
-import { TDiscipline } from "../types/teacherDisciplineTypes";
+import { Categories, TeachersDisciplines, Tests, Disciplines, Terms } from "@prisma/client";
+import { ITestWithAllInfo, TTest, ISanitizedTest, IDiscipline, ITerm, ISanitizedTerm, ISanitizedDiscipline } from "../types/testTypes";
+
 
 export async function insertTest(test: TTest){
     return await testRepositories.insertTest(test);
@@ -31,169 +31,145 @@ export async function validateCategory(categoryId: number){
     return;
 }
 
-export async function getAllTests(): Promise<Tests[]>{
+export async function getAllTests(): Promise<ITestWithAllInfo[]>{
     return await testRepositories.getAllTests();
 }
 
-export async function divideByDiscipline(tests: ITestWithAllInfo[]): Promise<[ITestAfterTreatment[]]>{
-    const disciplines = await teacherDisciplineRepositories.getAllDisciplines();
-    const numberOfDisciplines = disciplines.length;
-    const testsPositionByDiscipline: [ITestAfterTreatment[]] = [[]];
-    
-    for(let i = 1; i <= numberOfDisciplines; i++){
-        const testsByDiscipline: any = [];
-        
-        tests.map((test: ITestWithAllInfo) => {
-            const treatedTest: ITestAfterTreatment = returnNewTestStructure(test);
+export async function groupTests(tests: ITestWithAllInfo[]): Promise<ITerm[]>{
+    const terms: Terms[] = await termRepositories.getAllTerms();
+    const disciplines: Disciplines[] = await teacherDisciplineRepositories.getAllDisciplines();
 
-            if(treatedTest.discipline.id === i){
-                testsByDiscipline.push(treatedTest);
-            }
-        });
+    let groupedTests: ITerm[] = [];
 
-        testsPositionByDiscipline.push(testsByDiscipline);
-    }
-    
-    return testsPositionByDiscipline;
+    terms.forEach((term: Terms) => {
+        const termNumber: number = term.number;
+        const termDisciplines: IDiscipline[] = populateWithDisciplines(term, disciplines, tests);
+
+        const termObject: ITerm = {term: termNumber, disciplines: termDisciplines};
+
+        groupedTests.push(termObject);
+    });
+
+    groupedTests = distributeTests(tests, groupedTests);
+
+    return groupedTests;
 }
 
-export async function divideByTerm(testsGroupedByDiscipline: [ITestAfterTreatment[]]){   
-    type periodosKey = keyof typeof periodos;
-    
-    const disciplines: Disciplines[]  = await teacherDisciplineRepositories.getAllDisciplines();
-    const terms = await termRepositories.getAllTerms(); 
-    let periodos = {};
-    
-    //cria um array para cada período
-    for(let i = 1; i <= terms.length; i++){
-        periodos = {...periodos, [i]: []};
-    }
-                        //array com array de provas por posição
-    for(let i = 1; i < testsGroupedByDiscipline.length; i++){
-        const termIdOfDiscipline = disciplines[i-1].termId as periodosKey;
-        const testsOfDiscipline: ITestAfterTreatment[] = testsGroupedByDiscipline[i];
+export function sanitizeGroupedTests(groupedTests: ITerm[]): ISanitizedTerm[]{
+    const sanitizedTests: ISanitizedTerm[] = [];
 
-        const periodosData: [ITestAfterTreatment[]] = periodos[termIdOfDiscipline];
-        periodosData.push(testsOfDiscipline);
-        
-        periodos = { ...periodos, [termIdOfDiscipline]: periodosData};
-    }
+    for(let i = 0; i < groupedTests.length; i++){
+        const term: ITerm = groupedTests[i];
+        const disciplines: IDiscipline[] = term.disciplines;
 
-    return periodos;
-}
-
-export async function divideByCategory(testsGroupedByTerm: {}){
-    const categories = await categoryRepositories.getAllCategories();
-    const terms = await termRepositories.getAllTerms();
-
-    let testsGroupedByCategory = {};
-
-    for(let termId = 1; termId <= terms.length; termId++){
-        type ObjectKey = keyof typeof testsGroupedByTerm;
-        const termIdAsKey = termId as ObjectKey;
-        const termDisciplinesArray: [ITestAfterTreatment[]] = testsGroupedByTerm[termIdAsKey];        
-        
-        const newTermDisciplinesFormat = [];         
-
-        for(let j = 0; j < termDisciplinesArray.length; j++){
-            const disciplineAsObject = returnDisciplineDividedByCategory(termDisciplinesArray[j], categories);
-            newTermDisciplinesFormat.push(disciplineAsObject);
-        }
-
-        testsGroupedByCategory = {...testsGroupedByCategory, [termIdAsKey]: newTermDisciplinesFormat};
-    }
-
-    return testsGroupedByCategory;
-}
-
-export async function sanitizeData(testsGroupedByCategory: {}){
-    const terms = await termRepositories.getAllTerms();
-    let sanitizedTests = {};
-
-    for(let termId = 1; termId <= terms.length; termId++){ //navega por períodos
-        type ObjectKey = keyof typeof testsGroupedByCategory;
-        const termIdAsKey = termId as ObjectKey;
-        const termDisciplinesArray: TDiscipline[] = testsGroupedByCategory[termIdAsKey];        
-        
-        const sanitizedTermDisciplines = [];         
-
-        for(let j = 0; j < termDisciplinesArray.length; j++){//navega por disciplinas
-            const discipline: TDiscipline = termDisciplinesArray[j];
-            const sanitizedDiscipline: TDiscipline = returnSanitizedDiscipline(discipline);
-            sanitizedTermDisciplines.push(sanitizedDiscipline);
-        }
-
-        sanitizedTests = {...sanitizedTests, [termIdAsKey]: sanitizedTermDisciplines};
+        let sanitizedTerm: ISanitizedTerm = {term: term.term, disciplines: returnSanitizedDisciplines(disciplines)};
+        sanitizedTests.push(sanitizedTerm);
     }
 
     return sanitizedTests;
 }
 
-function returnNewTestStructure(test: ITestWithAllInfo): ITestAfterTreatment{
-    return {
-        id: test.id,
-        name: test.name,
-        pdfUrl: test.pdfUrl,
-        category: {
-          id: test.categories.id,
-          name: test.categories.name
-        },
-        teachers: {
-          id: test.teacherDisciplines.teachers.id,
-          name: test.teacherDisciplines.teachers.name
-        },
-        discipline: {
-          id: test.teacherDisciplines.discipline.id,
-          name: test.teacherDisciplines.discipline.name,
-          termId: test.teacherDisciplines.discipline.termId
+function populateWithDisciplines(term: Terms, disciplines: Disciplines[], tests: Tests[]): IDiscipline[]{
+    const disciplineArray: IDiscipline[] = [];
+
+    disciplines.forEach((discipline: Disciplines) => {
+        if(discipline.termId === term.id){
+            const disciplineObject = returnDisciplineObject(discipline);
+            disciplineArray.push(disciplineObject);
+        }
+    });
+
+    return disciplineArray;
+}
+
+function returnDisciplineObject(discipline: Disciplines): IDiscipline{
+    const disciplineObject: IDiscipline = {
+        discipline: discipline.name,
+        tests: {
+            Projeto: [],
+            Prática: [],
+            Recuperação: []
+        }
+    } 
+
+    return disciplineObject;
+}
+
+function distributeTests(tests: ITestWithAllInfo[], groupedTests: ITerm[]): ITerm[]{
+    
+    tests.forEach((test: ITestWithAllInfo) => {
+        groupedTests = placeTest(test, groupedTests);
+    })   
+    
+    return groupedTests;
+}
+
+function placeTest(test: ITestWithAllInfo, groupedTests: ITerm[]): ITerm[]{    
+    const termId: number = test.teacherDisciplines.discipline.termId;
+    const term: ITerm = groupedTests[termId - 1];
+
+    const testCategory: string = test.categories.name;
+    const testDiscipline: string = test.teacherDisciplines.discipline.name;
+
+    const termDisciplines: IDiscipline[] = term.disciplines;
+    for(let i = 0; i < termDisciplines.length; i++){
+        const discipline: IDiscipline = termDisciplines[i];
+
+        if(discipline.discipline === testDiscipline){
+            type ObjectKey = keyof typeof discipline.tests;
+            const testCategoryAsKey = testCategory as ObjectKey; 
+
+            discipline.tests[testCategoryAsKey].push(test);
         }
     }
+
+    return groupedTests;
 }
 
-function returnDisciplineDividedByCategory(tests: ITestAfterTreatment[], categories: Categories[]){
-    let testsByCategory = {};
-    type ObjectKey = keyof typeof testsByCategory;
-
-    for(let i = 0; i < categories.length; i++){
-        testsByCategory = { ...testsByCategory, [categories[i].name]: []};
-    }
-
-    for(let i = 0; i < tests.length; i++){
-        const test: ITestAfterTreatment = tests[i];
-        const testCategory = test.category.name as ObjectKey;
-
-        const categoryData: ITestAfterTreatment[] = testsByCategory[testCategory];
-        categoryData.push(test);
-        
-        testsByCategory = { ...testsByCategory, [testCategory]: categoryData};
-    }
-    
-    return testsByCategory;
-}
-
-function returnSanitizedTest(test: ITestAfterTreatment){
-    const sanitizedTest = {
+function returnSanitizedTest(test: ITestWithAllInfo): ISanitizedTest{
+    const sanitizedTest: ISanitizedTest = {
         id: test.id,
         name: test.name,
         pdfUrl: test.pdfUrl,
-        category: test.category.name,
-        teacher: test.teachers.name,
-        discipline: test.discipline.name,
-        termId: test.discipline.termId
+        teacher: test.teacherDisciplines.teachers.name
     }
 
     return sanitizedTest;
-}  
+} 
 
-function returnSanitizedDiscipline(discipline: TDiscipline): TDiscipline{
-    type ObjectKey = keyof typeof discipline;
+function returnSanitizedDisciplines(disciplines: IDiscipline[]): ISanitizedDiscipline[]{
+    const sanitizedDisciplines: ISanitizedDiscipline[] = [];
+
+    for(let i = 0; i < disciplines.length; i++){
+        const discipline: IDiscipline = disciplines[i];
+        const sanitizedDiscipline: ISanitizedDiscipline = returnSanitizedDiscipline(discipline);
+        sanitizedDisciplines.push(sanitizedDiscipline);
+    }
+
+    return sanitizedDisciplines;
+}
+
+function returnSanitizedDiscipline(discipline: IDiscipline): ISanitizedDiscipline{
+    const tests = discipline.tests;
+    const disciplineName: string = discipline.discipline;
+    type ObjectKey = keyof typeof tests;
+    
     const projeto = "Projeto" as ObjectKey;
     const pratica = "Prática" as ObjectKey;
     const recuperacao = "Recuperação" as ObjectKey;
     
-    const sanitizedProjects: any = discipline[projeto].map(returnSanitizedTest);
-    const sanitizedPratics: any = discipline[pratica].map(returnSanitizedTest);
-    const sanitizedRec: any = discipline[recuperacao].map(returnSanitizedTest);
+    const sanitizedProjects: ISanitizedTest[] = tests[projeto].map((test: ITestWithAllInfo) => {return returnSanitizedTest(test)});
+    const sanitizedPractics: ISanitizedTest[] = tests[pratica].map((test: ITestWithAllInfo) => {return returnSanitizedTest(test)});
+    const sanitizedRec: ISanitizedTest[] = tests[recuperacao].map((test: ITestWithAllInfo) => {return returnSanitizedTest(test)});
 
-    return {"Projeto": sanitizedProjects, "Prática": sanitizedPratics, "Recuperação": sanitizedRec};
+    const sanitizedDiscipline: ISanitizedDiscipline = {
+        discipline: disciplineName,
+        tests:{
+            Projeto: sanitizedProjects,
+            Prática: sanitizedPractics,
+            Recuperação: sanitizedRec
+        }
+    }
+
+    return sanitizedDiscipline;
 }

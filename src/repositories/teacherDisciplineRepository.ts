@@ -1,5 +1,5 @@
 import prisma from "../config/database";
-import { TeachersDisciplines } from "@prisma/client";
+import { Disciplines, TeachersDisciplines } from "@prisma/client";
 
 export async function findIfTeacherDisciplineIdIsValid(teacherDisciplineId: number): Promise<TeachersDisciplines | null>{
     return await prisma.teachersDisciplines.findFirst({
@@ -9,6 +9,6 @@ export async function findIfTeacherDisciplineIdIsValid(teacherDisciplineId: numb
     });
 }
 
-export async function getAllDisciplines(){
+export async function getAllDisciplines(): Promise<Disciplines[]>{
     return await prisma.disciplines.findMany();
 }
