@@ -1,6 +1,6 @@
 import { ITestWithAllInfo, TTest } from "../types/testTypes";
 import { Tests } from "@prisma/client";
-import prisma from "../config/database";
+import { prisma } from "../config/database";
 
 export async function insertTest(test: TTest){
     return await prisma.tests.create({

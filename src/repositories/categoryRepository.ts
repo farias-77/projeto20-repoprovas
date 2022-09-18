@@ -1,4 +1,4 @@
-import prisma from "../config/database";
+import { prisma } from "../config/database";
 import { Categories } from "@prisma/client";
 
 export async function findById(categoryId: number): Promise<Categories | null>{
