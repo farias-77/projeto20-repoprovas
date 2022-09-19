@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc && npx prisma generate && npx prisma migrate deploy",
-    "start": "node src/dist/server.js",
+    "start": "node dist/server.js",
     "dev": "nodemon src/server.ts",
     "test": "npx dotenv-cli -e .env.test npx prisma migrate dev && npx dotenv-cli -e .env.test npx prisma db seed && npx dotenv-cli -e .env.test jest -i"
   },
