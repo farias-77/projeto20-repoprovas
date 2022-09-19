@@ -1,11 +1,9 @@
-import { prisma } from "../src/config/database";
 import supertest from "supertest";
 import app from "../src/index";
 
 import userFactory from "./factories/userFactory";
 
 describe("Testa SignUp", () => {
-
     it("Testa SignUp com body correto -> deve retornar 201 e o usuário criado.", async () => {
         const user = userFactory();
         
@@ -66,6 +64,4 @@ describe("Testa SignIn" ,() => {
 
         expect(result.status).toBe(401);
     });
-
-
 });

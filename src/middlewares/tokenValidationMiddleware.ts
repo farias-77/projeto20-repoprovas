@@ -7,11 +7,11 @@ export default function tokenMiddleware(req: Request, res: Response, next: NextF
         const token: string = authorization?.replace("Bearer ", "").trim();
         const secretKey: string = process.env.JWT_SECRET || "";
             
-        const retornoJWT = jwt.verify(token, secretKey);
-        
-        if(!authorization || !retornoJWT){
-            throw {code: "unauthorized", message: "Token inválido."};
+        if(!authorization){
+            throw {code: "unauthorized", message: "Invalid token."};
         }
+        
+        const retornoJWT = jwt.verify(token, secretKey);
         
         res.locals.retornoJwtVerify = retornoJWT;
         next();
