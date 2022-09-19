@@ -9,10 +9,10 @@ beforeEach(async () => {
       await prisma.$disconnect();
 });
 
-describe("Configura beforeEach e afterAll", () => {
-    it("", async () => {
+describe("Arquivo para configurar beforeEach e afterAll", () => {
+    it("Arquivo .test precisa de uma suite :)", async () => {
         const soma = 1 + 2;
 
-        expect(soma).toBe(3)
+        expect(soma).toBe(3);
     })
 });
