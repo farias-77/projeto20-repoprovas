@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 
-export function correctUserFactory(){
+export default function userFactory(){
     const password = faker.internet.password();
     
     const user = {
