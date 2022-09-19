@@ -64,4 +64,35 @@ describe("Testa criação de provas", () => {
     });
 });
 
+describe("Testa get em provas por disciplina", () => {
+    it("Testa com token válido", async () => {
+        const user = userFactory();
+        const userCredentials = {email: user.email, password: user.password};
+
+        await supertest(app).post("/sign-up").send(user);
+        const signInResult = await supertest(app).post("/sign-in").send(userCredentials);
+        const token = signInResult.body.token;
+        
+        const result = await supertest(app).get("/testsByDiscipline").set({ Authorization: `Bearer ${token}`}).send();
+
+        expect(result.status).toBe(200);
+        expect(result.body).toBeInstanceOf(Array);
+    });
+});
+
+describe("Testa get em provas por instrutor", () => {
+    it("Testa com token válido", async () => {
+        const user = userFactory();
+        const userCredentials = {email: user.email, password: user.password};
+
+        await supertest(app).post("/sign-up").send(user);
+        const signInResult = await supertest(app).post("/sign-in").send(userCredentials);
+        const token = signInResult.body.token;
+        
+        const result = await supertest(app).get("/testsByTeacher").set({ Authorization: `Bearer ${token}`}).send();
+
+        expect(result.status).toBe(200);
+        expect(result.body).toBeInstanceOf(Array);
+    });
+});
 
